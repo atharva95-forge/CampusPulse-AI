@@ -56,6 +56,18 @@ def init_database():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS faculty (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            department TEXT,
+            designation TEXT,
+            qualification TEXT,
+            experience TEXT,
+            email TEXT
+        )
+    """)
+
     conn.commit()
 
     # --------------------------------------------------------
@@ -171,6 +183,33 @@ def init_database():
             (name, building, floor, room, description)
             VALUES (?, ?, ?, ?, ?)
         """, sample_locations)
+
+    faculty_count = conn.execute(
+        "SELECT COUNT(*) FROM faculty"
+    ).fetchone()[0]
+
+    if faculty_count == 0:
+        # Initial records transcribed from the faculty screenshots supplied by the user.
+        # Department is left unspecified because the department heading was not visible.
+        faculty_profiles = [
+            ("Prof. Dr. S. V. Pandit", "Not specified", "Head of Department", "M.E., Ph.D.", "Teaching - 23+ Years", "hodads@moderncoe.edu.in"),
+            ("Prof. Mrs. Priyanka Deshpande", "Not specified", "Assistant Professor", "M.E. (Computer Engineering)", "Teaching - 9.5+ Years; Industry - 4 Years", "priyanka.deshpande@moderncoe.edu.in"),
+            ("Prof. Mrs. Supriya Balote", "Not specified", "Assistant Professor", "M.E. (I.T.)", "Teaching - 7.5 Years; Industry - 2 Years", "supriya.balote@moderncoe.edu.in"),
+            ("Prof. Mrs. Priti Malkhede", "Not specified", "Assistant Professor", "M.Tech", "Teaching - 6.5 Years", "priti.malkhede@moderncoe.edu.in"),
+            ("Mrs. Rucha Shaiva", "Not specified", "Assistant Professor", "M.E. (Computer Engineering)", "Teaching - 2.5+ Years; Industry - 1.5 Years", "rucha.shaiva@moderncoe.edu.in"),
+            ("Ms. Preeti Shankar Ramtekkar", "Not specified", "Assistant Professor", "M.Tech Computer Science", "Teaching - 2 Years; Industry - 3 Months", "preeti.ramtekkar@moderncoe.edu.in"),
+            ("Ms. Jagruti Patil", "Not specified", "Assistant Professor", "M.E. Computer", "Teaching - 2 Years; Industry - 5 Years", "jagruti.patil@moderncoe.edu.in"),
+            ("Mrs. Madhuri Ash Giri", "Not specified", "Assistant Professor", "M.E. Computer", "Teaching - 11 Years", "madhuri.giri@moderncoe.edu.in"),
+            ("Alice Mary Marshal Rajan", "Not specified", "Assistant Professor", "M.E. (Computer Science)", "Teaching - 0 Years", "alice.marshal@moderncoe.edu.in"),
+            ("Ms. Bhagyashree P. Bendale", "Not specified", "Assistant Professor", "M.E. (CSE), Ph.D. (Pursuing)", "Teaching - 3 Years; Industry - 4 Years", "bhagyashree.bendale@moderncoe.edu.in"),
+            ("Lekha Ishwarwal Surana", "Not specified", "Assistant Professor", "M.E. (Computer Engineering)", "Teaching - 5.5 Years", "lekha.surana@moderncoe.edu.in"),
+            ("Prof. Sheetal Chaudhari", "Not specified", "Assistant Professor", "M.E. (Computer Science & Engineering)", "Teaching - 9 Years", "sheetal.chaudhari@moderncoe.edu.in")
+        ]
+        conn.executemany("""
+            INSERT INTO faculty
+            (name, department, designation, qualification, experience, email)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, faculty_profiles)
 
     conn.commit()
     conn.close()
@@ -567,6 +606,57 @@ button {
     margin:
         0 0 8px;
 
+}
+
+.faculty-tools {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin: 18px 0;
+}
+
+.faculty-tools input,
+.faculty-tools select,
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #0f172a;
+}
+
+.faculty-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+}
+
+.faculty-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    overflow-wrap: anywhere;
+}
+
+.faculty-card h3 {
+    margin: 0 0 10px;
+    font-size: 16px;
+}
+
+.faculty-card p {
+    margin: 7px 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.faculty-label {
+    color: #64748b;
+    font-weight: 700;
 }
 
 
@@ -986,6 +1076,13 @@ button {
         onclick="showPage('map', this)"
     >
         🗺️ Campus Map
+    </button>
+
+    <button
+        class="nav-btn"
+        onclick="showPage('faculty', this)"
+    >
+        👩‍🏫 Faculty Directory
     </button>
 
     <div class="menu-title">
@@ -1410,6 +1507,28 @@ button {
 
 
 <!-- ======================================================
+     FACULTY DIRECTORY
+====================================================== -->
+
+<section id="faculty" class="page">
+    <div class="section">
+        <h2>👩‍🏫 Faculty Directory</h2>
+        <p>Search faculty profiles by name, department, designation or qualification.</p>
+        <div class="faculty-tools">
+            <input id="facultySearch" type="search" placeholder="Search faculty..." oninput="filterFaculty()">
+            <select id="facultyDepartment" onchange="filterFaculty()">
+                <option value="">All departments</option>
+            </select>
+        </div>
+        <div id="facultyCount" style="color:#64748b; margin-bottom:14px; font-size:13px;"></div>
+        <div id="facultyContainer" class="faculty-grid">
+            Loading faculty...
+        </div>
+    </div>
+</section>
+
+
+<!-- ======================================================
      ADMIN PANEL
 ====================================================== -->
 
@@ -1732,6 +1851,43 @@ button {
     </div>
 
 
+    <!-- FACULTY MANAGEMENT -->
+
+    <div class="section">
+        <h2>👩‍🏫 Add Faculty Member</h2>
+        <p>Add faculty details to the directory. Department can be updated if verified.</p>
+        <form onsubmit="addFaculty(event)">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input id="facultyName" required>
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    <input id="facultyDepartmentInput" placeholder="e.g. AI & Data Science">
+                </div>
+                <div class="form-group">
+                    <label>Designation</label>
+                    <input id="facultyDesignation" placeholder="Assistant Professor">
+                </div>
+                <div class="form-group">
+                    <label>Qualification</label>
+                    <input id="facultyQualification">
+                </div>
+                <div class="form-group">
+                    <label>Experience</label>
+                    <input id="facultyExperience" placeholder="Teaching - 5 Years">
+                </div>
+                <div class="form-group">
+                    <label>Email ID</label>
+                    <input id="facultyEmail" type="email">
+                </div>
+            </div>
+            <br>
+            <button class="primary" type="submit">+ Add Faculty</button>
+        </form>
+    </div>
+
     <!-- DELETE MANAGEMENT -->
 
     <div class="section">
@@ -1760,6 +1916,11 @@ button {
         </h3>
 
         <div id="adminNotices">
+            Loading...
+        </div>
+
+        <h3 style="margin-top:25px;">Faculty Members</h3>
+        <div id="adminFaculty">
             Loading...
         </div>
 
@@ -1845,6 +2006,9 @@ function showPage(pageId, button) {
         map:
             "College Map",
 
+        faculty:
+            "Faculty Directory",
+
         admin:
             "Admin Panel"
 
@@ -1880,9 +2044,16 @@ function showPage(pageId, button) {
 
     }
 
+    if (pageId === "faculty") {
+
+        loadFaculty();
+
+    }
+
     if (pageId === "admin") {
 
         loadAdminData();
+        loadAdminFaculty();
 
     }
 
@@ -2838,6 +3009,125 @@ async function deleteNotice(noticeId) {
 
 
 /* =========================================================
+   FACULTY DIRECTORY
+========================================================= */
+
+let facultyRecords = [];
+
+function facultyCardHTML(member) {
+    return `
+        <div class="faculty-card">
+            <h3>${escapeHTML(member.name)}</h3>
+            <p><span class="faculty-label">Department:</span> ${escapeHTML(member.department || "Not specified")}</p>
+            <p><span class="faculty-label">Designation:</span> ${escapeHTML(member.designation || "Not specified")}</p>
+            <p><span class="faculty-label">Qualification:</span> ${escapeHTML(member.qualification || "Not specified")}</p>
+            <p><span class="faculty-label">Experience:</span> ${escapeHTML(member.experience || "Not specified")}</p>
+            ${member.email ? `<p><span class="faculty-label">Email:</span> <a href="mailto:${escapeHTML(member.email)}">${escapeHTML(member.email)}</a></p>` : ""}
+        </div>
+    `;
+}
+
+async function loadFaculty() {
+    const container = document.getElementById("facultyContainer");
+    if (!container) return;
+    try {
+        const response = await fetch("/api/faculty");
+        facultyRecords = await response.json();
+        const departmentSelect = document.getElementById("facultyDepartment");
+        const previousDepartment = departmentSelect.value;
+        const departments = [...new Set(facultyRecords.map(f => f.department).filter(d => d && d !== "Not specified"))].sort();
+        departmentSelect.innerHTML = '<option value="">All departments</option>' + departments.map(d => `<option value="${escapeHTML(d)}">${escapeHTML(d)}</option>`).join("");
+        if (departments.includes(previousDepartment)) departmentSelect.value = previousDepartment;
+        filterFaculty();
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = '<div class="empty">Unable to load faculty directory.</div>';
+    }
+}
+
+function filterFaculty() {
+    const container = document.getElementById("facultyContainer");
+    if (!container) return;
+    const search = (document.getElementById("facultySearch")?.value || "").trim().toLowerCase();
+    const department = document.getElementById("facultyDepartment")?.value || "";
+    const filtered = facultyRecords.filter(member => {
+        const text = [member.name, member.department, member.designation, member.qualification, member.experience, member.email].join(" ").toLowerCase();
+        return (!search || text.includes(search)) && (!department || member.department === department);
+    });
+    document.getElementById("facultyCount").textContent = `${filtered.length} of ${facultyRecords.length} faculty profiles`;
+    container.innerHTML = filtered.length ? filtered.map(facultyCardHTML).join("") : '<div class="empty">No matching faculty profiles found.</div>';
+}
+
+async function addFaculty(event) {
+    event.preventDefault();
+    const data = {
+        name: document.getElementById("facultyName").value.trim(),
+        department: document.getElementById("facultyDepartmentInput").value.trim() || "Not specified",
+        designation: document.getElementById("facultyDesignation").value.trim(),
+        qualification: document.getElementById("facultyQualification").value.trim(),
+        experience: document.getElementById("facultyExperience").value.trim(),
+        email: document.getElementById("facultyEmail").value.trim()
+    };
+    try {
+        const response = await fetch("/api/faculty", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            alert(result.error || "Unable to add faculty member.");
+            return;
+        }
+        alert("Faculty member added successfully.");
+        event.target.reset();
+        await loadFaculty();
+        await loadAdminFaculty();
+    } catch (error) {
+        console.error(error);
+        alert("Unable to connect to server.");
+    }
+}
+
+async function deleteFaculty(facultyId) {
+    if (!confirm("Are you sure you want to delete this faculty profile?")) return;
+    try {
+        const response = await fetch("/api/faculty/" + facultyId, { method: "DELETE" });
+        const result = await response.json();
+        if (!response.ok) {
+            alert(result.error || "Unable to delete faculty profile.");
+            return;
+        }
+        await loadFaculty();
+        await loadAdminFaculty();
+    } catch (error) {
+        console.error(error);
+        alert("Unable to connect to server.");
+    }
+}
+
+async function loadAdminFaculty() {
+    const container = document.getElementById("adminFaculty");
+    if (!container) return;
+    try {
+        const response = await fetch("/api/faculty");
+        const members = await response.json();
+        container.innerHTML = members.length ? members.map(member => `
+            <div class="faculty-card" style="margin-bottom:12px;">
+                <h3>${escapeHTML(member.name)}</h3>
+                <p>${escapeHTML(member.department || "Not specified")} · ${escapeHTML(member.designation || "Not specified")}</p>
+                <p>${escapeHTML(member.email || "Email not provided")}</p>
+                <button class="danger" onclick="deleteFaculty(${member.id})">🗑 Delete Faculty</button>
+            </div>
+        `).join("") : '<div class="empty">No faculty profiles available.</div>';
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = '<div class="empty">Unable to load faculty records.</div>';
+    }
+}
+
+
+/* =========================================================
    ADMIN DATA
 ========================================================= */
 
@@ -3420,6 +3710,63 @@ def add_location():
         "message":
             "Location added successfully."
     })
+
+
+# ============================================================
+# FACULTY GET
+# ============================================================
+
+@app.route("/api/faculty", methods=["GET"])
+def get_faculty():
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT * FROM faculty
+        ORDER BY name COLLATE NOCASE ASC
+    """).fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in rows])
+
+
+# ============================================================
+# FACULTY POST
+# ============================================================
+
+@app.route("/api/faculty", methods=["POST"])
+def add_faculty():
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()
+    department = str(data.get("department", "Not specified")).strip() or "Not specified"
+    designation = str(data.get("designation", "")).strip()
+    qualification = str(data.get("qualification", "")).strip()
+    experience = str(data.get("experience", "")).strip()
+    email = str(data.get("email", "")).strip()
+
+    if not name:
+        return jsonify({"error": "Faculty name is required."}), 400
+
+    conn = get_db()
+    conn.execute("""
+        INSERT INTO faculty (name, department, designation, qualification, experience, email)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (name, department, designation, qualification, experience, email))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": "Faculty member added successfully."}), 201
+
+
+# ============================================================
+# FACULTY DELETE
+# ============================================================
+
+@app.route("/api/faculty/<int:faculty_id>", methods=["DELETE"])
+def delete_faculty(faculty_id):
+    conn = get_db()
+    cursor = conn.execute("DELETE FROM faculty WHERE id = ?", (faculty_id,))
+    conn.commit()
+    conn.close()
+    if cursor.rowcount == 0:
+        return jsonify({"error": "Faculty profile not found."}), 404
+    return jsonify({"success": True, "message": "Faculty profile deleted successfully."})
 
 
 # ============================================================
